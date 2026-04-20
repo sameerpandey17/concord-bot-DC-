@@ -143,14 +143,14 @@ async def moderation_error(ctx, error):
     else:
         await ctx.send(f"❌ An error occurred: {error}")
 
-@bot.command(name='troll', help='Troll a user with a random customized phrase. Usage: !troll @user')
+@bot.command(name='rape', help='rape anyone!. Usage: !troll @user')
 async def troll(ctx, member: discord.Member):
     # Add your own custom joke phrases here!
     phrases = [
-        f"{member.name} went to the store and forgot their wallet at home.",
-        f"{member.name} accidentally replied 'you too' when the waiter told them to enjoy their food.",
-        f"{member.name} pushed a pull door in front of their crush.",
-        f"{member.name} thought 'Ctrl+Z' would fix their life choices."
+        f"{member.name} got raped in the ass.",
+        f"{member.name} got gangraped by 10 niggers.",
+        f"{member.name} 's ass was caught bleeding.",
+        f"{member.name} has some african DNA in them."
     ]
     
     # Pick one randomly and send it
