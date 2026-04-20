@@ -2,6 +2,8 @@ import discord
 from discord.ext import commands
 import os
 import random
+from flask import Flask
+from threading import Thread
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -11,6 +13,23 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 if not TOKEN:
     print("Error: DISCORD_TOKEN is missing from .env file.")
     exit(1)
+
+# --- Keep-Alive Web Server for Render ---
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot is alive!"
+
+def run():
+    # Render provides a port via the PORT environment variable
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
+# ----------------------------------------
 
 # Setup intents
 intents = discord.Intents.default()
@@ -155,4 +174,5 @@ async def slap(ctx, member: discord.Member):
     await ctx.send(random.choice(phrases))
 
 if __name__ == '__main__':
+    keep_alive() # Start the web server
     bot.run(TOKEN)
