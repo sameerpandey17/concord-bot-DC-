@@ -105,5 +105,42 @@ async def war(ctx, *args):
 async def hot(ctx):
     await ctx.send("strangesam17 is so hot")
 
+@bot.command(name='ban', help='Ban a user. Usage: !ban @user [reason]')
+@commands.has_permissions(ban_members=True)
+async def ban(ctx, member: discord.Member, *, reason=None):
+    try:
+        await member.ban(reason=reason)
+        await ctx.send(f"✅ Successfully banned **{member.name}**. Reason: {reason if reason else 'No reason provided.'}")
+    except discord.Forbidden:
+        await ctx.send("❌ I do not have permission to ban this user. Make sure my bot role is placed HIGHER in the role list than the person you are trying to ban!")
+    except Exception as e:
+        await ctx.send(f"❌ An error occurred: {e}")
+
+@bot.command(name='unban', help='Unban a user by their user ID. Usage: !unban <user_id>')
+@commands.has_permissions(ban_members=True)
+async def unban(ctx, user_id: int):
+    try:
+        user = discord.Object(id=user_id)
+        await ctx.guild.unban(user)
+        await ctx.send(f"✅ Successfully unbanned user ID **{user_id}**.")
+    except discord.NotFound:
+        await ctx.send("❌ That user is not banned.")
+    except discord.Forbidden:
+        await ctx.send("❌ I do not have permission to unban users.")
+    except Exception as e:
+        await ctx.send(f"❌ An error occurred: {e}")
+
+@ban.error
+@unban.error
+async def moderation_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("❌ You do not have permission to use this command.")
+    elif isinstance(error, commands.MemberNotFound):
+        await ctx.send("❌ Could not find that user. Please mention a valid user in the server.")
+    elif isinstance(error, commands.BadArgument):
+        await ctx.send("❌ Invalid input. For unbanning, please provide the numeric User ID (e.g. `!unban 123456789`).")
+    else:
+        await ctx.send(f"❌ An error occurred: {error}")
+
 if __name__ == '__main__':
     bot.run(TOKEN)
