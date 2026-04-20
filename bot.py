@@ -28,8 +28,19 @@ async def on_ready():
 @bot.command(name='warping', help='DM users to ping them for war. Usage: !warping @user1 @user2 [optional message]')
 @commands.has_permissions(administrator=True) # Ensure only admins can use this
 async def warping(ctx, *args):
+    # Delete the original command message so it doesn't ping the channel or clutter it
+    try:
+        await ctx.message.delete()
+    except discord.Forbidden:
+        pass # Bot doesn't have manage_messages permission, which is fine
+
     # Collect target users dynamically
     targets = set()
+    
+    # Check if 'all' is passed to avoid Discord's @everyone popup/channel ping
+    if 'all' in [str(a).lower() for a in args]:
+        targets.update(ctx.guild.members)
+        
     if ctx.message.mention_everyone:
         targets.update(ctx.guild.members) # Needs Server Members Intent in portal
     else:
@@ -44,7 +55,7 @@ async def warping(ctx, *args):
     user_words = ctx.message.content.split()
     custom_msg_words = [
         word for word in user_words 
-        if not word.startswith('<@') and word not in ('!warping', '@everyone', '@here')
+        if not word.startswith('<@') and word.lower() not in ('!warping', '@everyone', '@here', 'all')
     ]
     
     # Default message
