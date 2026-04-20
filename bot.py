@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 import os
+import random
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -141,6 +142,20 @@ async def moderation_error(ctx, error):
         await ctx.send("❌ Invalid input. For unbanning, please provide the numeric User ID (e.g. `!unban 123456789`).")
     else:
         await ctx.send(f"❌ An error occurred: {error}")
+
+@bot.command(name='troll', help='Troll a user with a random customized phrase. Usage: !troll @user')
+async def troll(ctx, member: discord.Member):
+    # Add your own custom joke phrases here!
+    phrases = [
+        f"{member.name} went to the store and forgot their wallet at home.",
+        f"{member.name} accidentally replied 'you too' when the waiter told them to enjoy their food.",
+        f"{member.name} pushed a pull door in front of their crush.",
+        f"{member.name} thought 'Ctrl+Z' would fix their life choices."
+    ]
+    
+    # Pick one randomly and send it
+    random_phrase = random.choice(phrases)
+    await ctx.send(random_phrase)
 
 if __name__ == '__main__':
     bot.run(TOKEN)
