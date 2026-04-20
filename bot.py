@@ -101,5 +101,9 @@ async def warping_error(ctx, error):
 async def war(ctx, *args):
     await ctx.send("Did you mean `!warping`?")
 
+@bot.command(name='hot')
+async def hot(ctx):
+    await ctx.send("strangesam17 is so hot")
+
 if __name__ == '__main__':
     bot.run(TOKEN)
