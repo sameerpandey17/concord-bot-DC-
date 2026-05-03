@@ -2,6 +2,8 @@ import discord
 from discord.ext import commands
 import os
 import random
+import asyncio
+import datetime
 from flask import Flask
 from threading import Thread
 from dotenv import load_dotenv
@@ -38,6 +40,53 @@ intents.members = True # Better to have members intent to ensure accurate user i
 
 # Create the bot instance
 bot = commands.Bot(command_prefix='!', intents=intents)
+
+# --- Training Ticket Settings ---
+APPLY_CHANNEL_NAME = "apply-for-training"
+TICKET_CATEGORY_NAME = "Training Tickets"
+TRAINER_ROLE_NAME = "Trainer"
+ADMIN_ROLE_NAMES = {"Leader", "Subowner"}
+LOG_CHANNEL_NAME = "training-log"
+TICKET_PREFIX = "ticket-"
+# -------------------------------
+
+def _get_role_by_name(guild: discord.Guild, role_name: str):
+    return discord.utils.get(guild.roles, name=role_name)
+
+def _member_has_role(member: discord.Member, role_names: set[str]):
+    member_role_names = {role.name.lower() for role in member.roles}
+    return any(role_name.lower() in member_role_names for role_name in role_names)
+
+def _is_ticket_channel(channel: discord.TextChannel):
+    if not isinstance(channel, discord.TextChannel):
+        return False
+    if not channel.name.startswith(TICKET_PREFIX):
+        return False
+    if channel.category is None:
+        return False
+    return channel.category.name == TICKET_CATEGORY_NAME
+
+def _is_member_applicant(member: discord.Member):
+    return not _member_has_role(member, {TRAINER_ROLE_NAME} | ADMIN_ROLE_NAMES)
+
+async def _get_or_create_ticket_category(guild: discord.Guild):
+    category = discord.utils.get(guild.categories, name=TICKET_CATEGORY_NAME)
+    if category is None:
+        category = await guild.create_category(TICKET_CATEGORY_NAME)
+    return category
+
+def _find_existing_ticket(guild: discord.Guild, applicant_id: int):
+    category = discord.utils.get(guild.categories, name=TICKET_CATEGORY_NAME)
+    if category is None:
+        return None
+
+    topic_marker = f"applicant:{applicant_id}"
+    for channel in category.text_channels:
+        if channel.topic == topic_marker:
+            return channel
+
+    fallback_name = f"{TICKET_PREFIX}{guild.get_member(applicant_id).name.lower()}"
+    return discord.utils.get(category.text_channels, name=fallback_name)
 
 @bot.event
 async def on_ready():
@@ -89,7 +138,7 @@ async def warping(ctx, *args):
     success_count = 0
     fail_count = 0
     
-    # Loop over targeted users and DM them
+    # Loop over targeted users and DM them with a small delay to avoid rate limits
     for member in targets:
         if member.bot:
             continue # Don't ping other bots
@@ -102,6 +151,8 @@ async def warping(ctx, *args):
         except Exception as e:
             print(f"Failed to DM {member.name}: {e}")
             fail_count += 1
+        # Basic rate limiting to prevent hitting DM creation limits
+        await asyncio.sleep(1.0 + random.random() * 0.5)
             
     # Send a confirmation in the channel
     response = f"Sent war pings! ✅ Successfully sent to **{success_count}** user(s)."
@@ -124,6 +175,104 @@ async def war(ctx, *args):
 @bot.command(name='hot')
 async def hot(ctx):
     await ctx.send("strangesam17 is so hot")
+
+@bot.command(name='apply', help='Open a training ticket. Use in #apply-for-training.')
+async def apply(ctx):
+    if ctx.guild is None:
+        return
+    if not isinstance(ctx.channel, discord.TextChannel) or ctx.channel.name != APPLY_CHANNEL_NAME:
+        await ctx.send(f"Please use this command in #{APPLY_CHANNEL_NAME}.")
+        return
+
+    try:
+        await ctx.message.delete()
+    except discord.Forbidden:
+        pass
+
+    category = await _get_or_create_ticket_category(ctx.guild)
+
+    existing = _find_existing_ticket(ctx.guild, ctx.author.id)
+    if existing is not None:
+        await ctx.send(f"You already have an open ticket: {existing.mention}")
+        return
+
+    trainer_role = _get_role_by_name(ctx.guild, TRAINER_ROLE_NAME)
+    admin_roles = [
+        _get_role_by_name(ctx.guild, role_name)
+        for role_name in ADMIN_ROLE_NAMES
+    ]
+
+    overwrites = {
+        ctx.guild.default_role: discord.PermissionOverwrite(view_channel=False),
+        ctx.author: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True)
+    }
+
+    if trainer_role is not None:
+        overwrites[trainer_role] = discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True)
+
+    for role in admin_roles:
+        if role is not None:
+            overwrites[role] = discord.PermissionOverwrite(
+                view_channel=True,
+                send_messages=True,
+                read_message_history=True,
+                manage_channels=True
+            )
+
+    ticket_channel = await ctx.guild.create_text_channel(
+        name=f"{TICKET_PREFIX}{ctx.author.name.lower()}",
+        category=category,
+        overwrites=overwrites,
+        topic=f"applicant:{ctx.author.id}"
+    )
+
+    trainer_mention = trainer_role.mention if trainer_role else "Trainer"
+    await ticket_channel.send(
+        f"Welcome {ctx.author.mention}! {trainer_mention}, a new training ticket has been created."
+    )
+    await ctx.send(f"Your ticket has been created: {ticket_channel.mention}")
+
+@bot.command(name='claim', help='Claim a training ticket (Trainer/Admin only).')
+async def claim(ctx):
+    if ctx.guild is None:
+        return
+    if not _is_ticket_channel(ctx.channel):
+        await ctx.send("This command can only be used inside a training ticket.")
+        return
+
+    if not _member_has_role(ctx.author, {TRAINER_ROLE_NAME} | ADMIN_ROLE_NAMES):
+        await ctx.send("You do not have permission to claim this ticket.")
+        return
+
+    await ctx.send(f"Ticket claimed by {ctx.author.mention}.")
+
+@bot.command(name='close', help='Close a training ticket (Trainer/Admin only).')
+async def close(ctx):
+    if ctx.guild is None:
+        return
+    if not _is_ticket_channel(ctx.channel):
+        await ctx.send("This command can only be used inside a training ticket.")
+        return
+
+    if not _member_has_role(ctx.author, {TRAINER_ROLE_NAME} | ADMIN_ROLE_NAMES):
+        await ctx.send("You do not have permission to close this ticket.")
+        return
+
+    log_channel = discord.utils.get(ctx.guild.text_channels, name=LOG_CHANNEL_NAME)
+    if log_channel is not None:
+        applicant_name = "Unknown"
+        if ctx.channel.topic and ctx.channel.topic.startswith("applicant:"):
+            applicant_id = int(ctx.channel.topic.split(":", 1)[1])
+            applicant = ctx.guild.get_member(applicant_id)
+            if applicant is not None:
+                applicant_name = applicant.name
+
+        timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        await log_channel.send(
+            f"Ticket closed | Player: {applicant_name} | Closed by: {ctx.author.mention} | Time: {timestamp}"
+        )
+
+    await ctx.channel.delete()
 
 @bot.command(name='ban', help='Ban a user. Usage: !ban @user [reason]')
 @commands.has_permissions(ban_members=True)
