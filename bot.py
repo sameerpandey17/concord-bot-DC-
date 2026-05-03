@@ -181,7 +181,7 @@ async def apply(ctx):
     if ctx.guild is None:
         return
     if not isinstance(ctx.channel, discord.TextChannel) or ctx.channel.name != APPLY_CHANNEL_NAME:
-        await ctx.send(f"Please use this command in #{APPLY_CHANNEL_NAME}.")
+        await ctx.send(f"Please use this command in #{APPLY_CHANNEL_NAME}.", delete_after=5)
         return
 
     try:
@@ -193,7 +193,7 @@ async def apply(ctx):
 
     existing = _find_existing_ticket(ctx.guild, ctx.author.id)
     if existing is not None:
-        await ctx.send(f"You already have an open ticket: {existing.mention}")
+        await ctx.send(f"You already have an open ticket: {existing.mention}", delete_after=5)
         return
 
     trainer_role = _get_role_by_name(ctx.guild, TRAINER_ROLE_NAME)
@@ -230,7 +230,7 @@ async def apply(ctx):
     await ticket_channel.send(
         f"Welcome {ctx.author.mention}! {trainer_mention}, a new training ticket has been created."
     )
-    await ctx.send(f"Your ticket has been created: {ticket_channel.mention}")
+    await ctx.send(f"Your ticket has been created: {ticket_channel.mention}", delete_after=5)
 
 @bot.command(name='claim', help='Claim a training ticket (Trainer/Admin only).')
 async def claim(ctx):
