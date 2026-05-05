@@ -230,6 +230,13 @@ async def apply(ctx):
     await ticket_channel.send(
         f"Welcome {ctx.author.mention}! {trainer_mention}, a new training ticket has been created."
     )
+    await ticket_channel.send(
+        "Please answer these questions:\n"
+        "**WHATS UR TIMEZONE**\n"
+        "**ARE U ACTIVE?**\n"
+        "**DO U KNOW THE DIFFRENCE BETWEEN DEFENSE AND ATTACKER BUILDING**\n"
+        "**DO U KNOW HOW TO MACRO REFILL**"
+    )
     await ctx.send(f"Your ticket has been created: {ticket_channel.mention}", delete_after=5)
 
 @bot.command(name='claim', help='Claim a training ticket (Trainer/Admin only).')
